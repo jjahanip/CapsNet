@@ -106,3 +106,5 @@ MNIST_data/
 .idea
 Results/
 data/
+*.h5
+

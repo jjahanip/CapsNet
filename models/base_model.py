@@ -10,11 +10,11 @@ class BaseModel(object):
         self.conf = conf
         self.summary_list = []
         if self.conf.dim == 2:
-            self.input_shape = [self.conf.batch_size, self.conf.height, self.conf.width, self.conf.channel]
+            self.input_shape = [None, self.conf.height, self.conf.width, self.conf.channel]
         else:
-            self.input_shape = [self.conf.batch_size, self.conf.height, self.conf.width, self.conf.channel]
+            self.input_shape = [None, self.conf.height, self.conf.width, self.conf.channel]
 
-        self.output_shape = [self.conf.batch_size, self.conf.num_cls]
+        self.output_shape = [None, self.conf.num_cls]
         self.create_placeholders()
         self.global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0),
                                            trainable=False)
@@ -29,18 +29,20 @@ class BaseModel(object):
         with tf.variable_scope('Masking'):
             epsilon = 1e-9
             self.v_length = tf.sqrt(tf.reduce_sum(tf.square(self.digit_caps), axis=2, keep_dims=True) + epsilon)
-            # [?, 10, 1]
+            # [?, num_cls, 1]
+
+            self.y_prob = tf.squeeze(self.v_length)     # [?, num_cls]
 
             y_prob_argmax = tf.to_int32(tf.argmax(self.v_length, axis=1))
             # [?, 1]
             self.y_pred = tf.squeeze(y_prob_argmax)
             # [?] (predicted labels)
-            y_pred_ohe = tf.one_hot(self.y_pred, depth=self.conf.num_cls)
+            self.y_pred_ohe = tf.one_hot(self.y_pred, depth=self.conf.num_cls)
             # [?, 10] (one-hot-encoded predicted labels)
 
             reconst_targets = tf.cond(self.mask_with_labels,  # condition
                                       lambda: self.y,  # if True (Training)
-                                      lambda: y_pred_ohe,  # if False (Test)
+                                      lambda: self.y_pred_ohe,  # if False (Test)
                                       name="reconstruction_targets")
             # [?, 10]
             self.output_masked = tf.multiply(self.digit_caps, tf.expand_dims(reconst_targets, -1))
@@ -75,8 +77,9 @@ class BaseModel(object):
             self.mean_loss, self.mean_loss_op = tf.metrics.mean(self.total_loss)
 
         if self.conf.add_recon_loss or self.conf.add_decoder:
-            self.summary_list.append(tf.summary.image('reconstructed', recon_img))
-            self.summary_list.append(tf.summary.image('original', self.x))
+            # self.summary_list.append(tf.summary.image('reconstructed', recon_img))
+            # self.summary_list.append(tf.summary.image('original', self.x))
+            pass
 
     def accuracy_func(self):
         with tf.variable_scope('Accuracy'):
@@ -161,6 +164,8 @@ class BaseModel(object):
             from DataLoaders.CIFARLoader import DataLoader
         elif self.conf.data == 'apoptosis':
             from DataLoaders.ApoptosisLoader import DataLoader
+        elif self.conf.data == 'brain':
+            from DataLoaders.BrainLoader import DataLoader
         self.data_reader = DataLoader(self.conf)
         self.data_reader.get_data(mode='train')
         self.data_reader.get_data(mode='valid')
@@ -255,6 +260,8 @@ class BaseModel(object):
             from DataLoaders.CIFARLoader import DataLoader
         elif self.conf.data == 'apoptosis':
             from DataLoaders.ApoptosisLoader import DataLoader
+        elif self.conf.data == 'brain':
+            from DataLoaders.BrainLoader import DataLoader
         self.data_reader = DataLoader(self.conf)
         self.data_reader.get_data(mode='test')
         self.num_test_batch = self.data_reader.count_num_batch(self.conf.batch_size, mode='test')
@@ -270,6 +277,83 @@ class BaseModel(object):
         print('-' * 18 + 'Test Completed' + '-' * 18)
         print('test_loss= {0:.4f}, test_acc={1:.01%}'.format(test_loss, test_acc))
         print('-' * 50)
+
+    def inference(self, step_num):
+        self.sess.run(tf.local_variables_initializer())
+        self.reload(step_num)
+        if self.conf.data == 'mnist':
+            from DataLoaders.MNISTLoader import DataLoader
+        elif self.conf.data == 'nodule':
+            from DataLoaders.DataLoader import DataLoader
+        elif self.conf.data == 'cifar10':
+            from DataLoaders.CIFARLoader import DataLoader
+        elif self.conf.data == 'apoptosis':
+            from DataLoaders.ApoptosisLoader import DataLoader
+        elif self.conf.data == 'brain':
+            from DataLoaders.BrainLoader import DataLoader
+        self.data_reader = DataLoader(self.conf)
+        self.data_reader.get_data(mode='test')
+        self.num_test_batch = self.data_reader.count_num_batch(self.conf.batch_size, mode='test')
+        self.is_train = False
+        self.sess.run(tf.local_variables_initializer())
+        y_prob = []
+        y_pred = []
+        for step in range(self.num_test_batch):
+            start = step * self.conf.batch_size
+            end = (step + 1) * self.conf.batch_size
+            x_test, _ = self.data_reader.next_batch(start, end, mode='test')
+            feed_dict = {self.x: x_test, self.mask_with_labels: False}
+            y_prob.extend(self.sess.run(self.y_prob, feed_dict=feed_dict))
+            y_pred.extend(self.sess.run(self.y_pred_ohe, feed_dict=feed_dict))
+
+        y_prob = np.array(y_prob)
+        y_pred = np.array(y_pred)
+
+        import matplotlib.pyplot as plt
+        for i in range(5):
+            plt.hist(y_prob[:, i], bins=400)
+            plt.title(biomarkers[i + 2])
+            plt.show()
+
+        thresh = 0.40
+        temp = np.where((y_prob[:, 0] < thresh) & (y_prob[:, 1] < thresh) & (y_prob[:, 2] < thresh) &
+                        (y_prob[:, 3] < thresh) & (y_prob[:, 4] < thresh))
+        print('precentage of uncategorized cells: {:.2f} %'.format((len(temp[0]) / 200000) * 100))
+
+
+        ################################################################################################################
+        # center image
+        import pandas as pd
+        from prepare_data.utils import bbxs_image, center_image
+
+        bbxs_file = r'/brazos/roysam/50_plex/Set#1_S1/detection_results/bbxs_detection.txt'
+        bbxs_table = pd.read_csv(bbxs_file, sep='\t')
+        bbxs = bbxs_table[['xmin', 'ymin', 'xmax', 'ymax']].values
+        centers = bbxs_table[['centroid_x', 'centroid_y']].values
+
+        biomarkers = ['DAPI', 'Histones', 'NeuN', 'S100', 'Olig2', 'Iba1', 'RECA1']
+        image_size = (43054, 29398)
+        center_image('all.tif', centers, image_size, color='red')
+        center_image(biomarkers[2] + '.tif', centers[y_pred[:, 0] == 1, :], image_size, color='red')
+        center_image(biomarkers[3] + '.tif', centers[y_pred[:, 1] == 1, :], image_size, color='red')
+        center_image(biomarkers[4] + '.tif', centers[y_pred[:, 2] == 1, :], image_size, color='red')
+        center_image(biomarkers[5] + '.tif', centers[y_pred[:, 3] == 1, :], image_size, color='red')
+        center_image(biomarkers[6] + '.tif', centers[y_pred[:, 4] == 1, :], image_size, color='red')
+
+        ################################################################################################################
+        # feature table
+        import pandas as pd
+        from prepare_data.utils import bbxs_image
+        biomarkers = ['DAPI', 'Histones', 'NeuN', 'S100', 'Olig2', 'Iba1', 'RECA1']
+        bbxs_file = r'/brazos/roysam/50_plex/Set#1_S1/detection_results/bbxs_detection.txt'
+        bbxs_table = pd.read_csv(bbxs_file, sep='\t')
+        bbxs_table[biomarkers[2]] = y_prob[:, 0]
+        bbxs_table[biomarkers[3]] = y_prob[:, 1]
+        bbxs_table[biomarkers[4]] = y_prob[:, 2]
+        bbxs_table[biomarkers[5]] = y_prob[:, 3]
+        bbxs_table[biomarkers[6]] = y_prob[:, 4]
+        bbxs_table.to_csv('associative_feature.csv')
+
 
     def save(self, step):
         print('----> Saving the model at step #{0}'.format(step))

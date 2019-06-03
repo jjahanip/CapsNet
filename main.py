@@ -26,7 +26,8 @@ def main(_):
             write_spec(args)
             model.train()
         elif args.mode == 'test':
-            model.test(args.step_num)
+            # model.test(args.step_num)
+            model.inference(args.step_num)
 
 
 if __name__ == '__main__':
