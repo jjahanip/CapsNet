@@ -22,6 +22,8 @@ def main(_):
             os.makedirs(args.modeldir+args.run_name)
         if not os.path.exists(args.logdir+args.run_name):
             os.makedirs(args.logdir+args.run_name)
+        if not os.path.exists(args.datadir+args.run_name):
+            os.makedirs(args.datadir+args.run_name)
         if args.mode == 'train':
             write_spec(args)
             model.train()

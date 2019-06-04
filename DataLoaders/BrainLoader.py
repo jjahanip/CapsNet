@@ -1,8 +1,11 @@
-import random
-import scipy
-import numpy as np
+import os
 import h5py
-
+import scipy
+import random
+import numpy as np
+import pandas as pd
+from prepare_data.utils import center_image
+import matplotlib.pyplot as plt
 
 class DataLoader(object):
 
@@ -27,6 +30,11 @@ class DataLoader(object):
             x_test = h5f['X_test'][:]
             y_test = h5f['Y_test'][:]
             self.x_test, self.y_test = self.preprocess(x_test, y_test)
+            bbxs = h5f['bbxs'][:]
+            self.bbxs = pd.DataFrame(bbxs, columns=['ID', 'centroid_x', 'centroid_y', 'xmin', 'ymin', 'xmax', 'ymax'])
+            self.bbxs = self.bbxs.set_index('ID')
+            self.image_size = tuple(h5f['image_size'][:])
+            self.biomarkers = h5f['biomarkers'][:].astype(str)
         h5f.close()
 
     def next_batch(self, start=None, end=None, mode='train'):
@@ -75,6 +83,38 @@ class DataLoader(object):
         h5f.close()
         self.mean = np.mean(x_train, axis=0)
         self.std = np.std(x_train, axis=0)
+
+    def plot_hists(self, y_prob):
+        for i in range(y_prob.shape[1]):
+            plt.hist(y_prob[:, i], bins=500)
+            plt.title(self.biomarkers[i + 2])
+            plt.show()
+
+    def generate_center_images(self, y_pred):
+        centers = self.bbxs[['centroid_x', 'centroid_y']].values
+        save_dir = os.path.join(self.cfg.datadir, self.cfg.run_name)
+        neg_samples = np.where(~y_pred.any(axis=1))[0]
+        center_image(os.path.join(save_dir, 'all.tif'), centers, self.image_size)
+        center_image(os.path.join(save_dir, 'uncategorized.tif'), centers[neg_samples, :], self.image_size)
+        for i in range(y_pred.shape[1]):
+            center_image(os.path.join(save_dir, self.biomarkers[i + 2] + '.tif'),
+                         centers[y_pred[:, i] == 1, :], self.image_size)
+
+    def generate_classification_table(self, y_pred):
+        for i in range(y_pred.shape[1]):
+            self.bbxs[self.biomarkers[i + 2]] = y_pred[:, i]
+
+        save_dir = os.path.join(self.cfg.datadir, self.cfg.run_name)
+        self.bbxs.to_csv(os.path.join(save_dir, 'classification_table.csv'))
+
+    def generate_probability_table(self, y_prob):
+        for i in range(y_prob.shape[1]):
+            self.bbxs[self.biomarkers[i + 2]] = y_prob[:, i]
+
+        save_dir = os.path.join(self.cfg.datadir, self.cfg.run_name)
+        self.bbxs.to_csv(os.path.join(save_dir, 'probability_table.csv'))
+
+
 
 
 def random_rotation_2d(batch, max_angle):

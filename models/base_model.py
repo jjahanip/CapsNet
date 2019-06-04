@@ -305,55 +305,37 @@ class BaseModel(object):
             feed_dict = {self.x: x_test, self.mask_with_labels: False}
             y_prob.extend(self.sess.run(self.y_prob, feed_dict=feed_dict))
             y_pred.extend(self.sess.run(self.y_pred_ohe, feed_dict=feed_dict))
-
         y_prob = np.array(y_prob)
         y_pred = np.array(y_pred)
 
-        import matplotlib.pyplot as plt
-        for i in range(5):
-            plt.hist(y_prob[:, i], bins=400)
-            plt.title(biomarkers[i + 2])
-            plt.show()
+        # # temp
+        # import h5py
+        # with h5py.File('y.h5', 'w') as f:
+        #     f.create_dataset('y_pred', data=y_pred)
+        #     f.create_dataset('y_prob', data=y_prob)
 
-        thresh = 0.40
-        temp = np.where((y_prob[:, 0] < thresh) & (y_prob[:, 1] < thresh) & (y_prob[:, 2] < thresh) &
-                        (y_prob[:, 3] < thresh) & (y_prob[:, 4] < thresh))
-        print('precentage of uncategorized cells: {:.2f} %'.format((len(temp[0]) / 200000) * 100))
+        # # temp
+        # import h5py
+        # with h5py.File('y.h5', 'r') as f:
+        #     y_prob = f['y_prob'][:]
+        #     y_pred = f['y_pred'][:]
 
+        # create negative samples
+        thresh = 0.50
+        neg_samples = np.where((y_prob[:, 0] < thresh) & (y_prob[:, 1] < thresh) & (y_prob[:, 2] < thresh) &
+                               (y_prob[:, 3] < thresh) & (y_prob[:, 4] < thresh))[0]
+        print('precentage of uncategorized cells: {:.2%}'.format((len(neg_samples) / len(self.data_reader.bbxs))))
+        y_pred[neg_samples, :] = np.zeros((y_pred.shape[1]))
 
-        ################################################################################################################
+        # generate histograms
+        self.data_reader.plot_hists(y_prob)
+
         # center image
-        import pandas as pd
-        from prepare_data.utils import bbxs_image, center_image
+        self.data_reader.generate_center_images(y_pred)
 
-        bbxs_file = r'/brazos/roysam/50_plex/Set#1_S1/detection_results/bbxs_detection.txt'
-        bbxs_table = pd.read_csv(bbxs_file, sep='\t')
-        bbxs = bbxs_table[['xmin', 'ymin', 'xmax', 'ymax']].values
-        centers = bbxs_table[['centroid_x', 'centroid_y']].values
-
-        biomarkers = ['DAPI', 'Histones', 'NeuN', 'S100', 'Olig2', 'Iba1', 'RECA1']
-        image_size = (43054, 29398)
-        center_image('all.tif', centers, image_size, color='red')
-        center_image(biomarkers[2] + '.tif', centers[y_pred[:, 0] == 1, :], image_size, color='red')
-        center_image(biomarkers[3] + '.tif', centers[y_pred[:, 1] == 1, :], image_size, color='red')
-        center_image(biomarkers[4] + '.tif', centers[y_pred[:, 2] == 1, :], image_size, color='red')
-        center_image(biomarkers[5] + '.tif', centers[y_pred[:, 3] == 1, :], image_size, color='red')
-        center_image(biomarkers[6] + '.tif', centers[y_pred[:, 4] == 1, :], image_size, color='red')
-
-        ################################################################################################################
-        # feature table
-        import pandas as pd
-        from prepare_data.utils import bbxs_image
-        biomarkers = ['DAPI', 'Histones', 'NeuN', 'S100', 'Olig2', 'Iba1', 'RECA1']
-        bbxs_file = r'/brazos/roysam/50_plex/Set#1_S1/detection_results/bbxs_detection.txt'
-        bbxs_table = pd.read_csv(bbxs_file, sep='\t')
-        bbxs_table[biomarkers[2]] = y_prob[:, 0]
-        bbxs_table[biomarkers[3]] = y_prob[:, 1]
-        bbxs_table[biomarkers[4]] = y_prob[:, 2]
-        bbxs_table[biomarkers[5]] = y_prob[:, 3]
-        bbxs_table[biomarkers[6]] = y_prob[:, 4]
-        bbxs_table.to_csv('associative_feature.csv')
-
+        # generate classification and proability table
+        self.data_reader.generate_classification_table(y_pred)
+        self.data_reader.generate_probability_table(y_prob)
 
     def save(self, step):
         print('----> Saving the model at step #{0}'.format(step))

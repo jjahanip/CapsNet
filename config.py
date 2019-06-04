@@ -2,7 +2,7 @@ import tensorflow as tf
 
 flags = tf.app.flags
 flags.DEFINE_string('mode', 'test', 'train or test')
-flags.DEFINE_integer('step_num', 989, 'model number to load')
+flags.DEFINE_integer('step_num', 151469, 'model number to load')
 flags.DEFINE_string('model', 'original_capsule', 'original_capsule, matrix_capsule or vector_capsule')
 
 # Training logs
@@ -42,9 +42,10 @@ flags.DEFINE_integer('channel', 7, 'Network input channel size')
 flags.DEFINE_integer('num_cls', 5, 'Number of output classes')
 
 # Directories
-flags.DEFINE_string('run_name', 'test', 'Run name')
+flags.DEFINE_string('run_name', 'run02', 'Run name')
 flags.DEFINE_string('logdir', './Results/log_dir/', 'Logs directory')
 flags.DEFINE_string('modeldir', './Results/model_dir/', 'Saved models directory')
+flags.DEFINE_string('datadir', './Results/data_dir/', 'Saved models directory')
 flags.DEFINE_integer('reload_step', 0, 'Reload step to continue training')
 flags.DEFINE_string('model_name', 'model', 'Model file name')
 

@@ -4,12 +4,10 @@ import h5py
 import numpy as np
 import pandas as pd
 import multiprocessing
-from functools import partial
 import skimage.io as io
+from functools import partial
 from skimage.transform import resize
-from sklearn.model_selection import train_test_split
 
-import matplotlib.pyplot as plt
 
 input_dir = r'/brazos/roysam/50_plex/Set#1_S1/final'
 bbxs_file = r'/brazos/roysam/50_plex/Set#1_S1/detection_results/bbxs_detection.txt'
@@ -119,19 +117,20 @@ def main():
     else:
         X = [resize(cell, crop_size, mode='constant', preserve_range=True) for cell in X]
 
-    X = np.array(X)
+    if parallel:
+        pool.close()
 
     # Generate test set
-    X_test = np.copy(X)
+    X_test = np.array(X)
     Y_test = np.zeros_like(meanInt, dtype=int)
     Y_test[np.arange(len(meanInt)), meanInt.argmax(1)] = 1
 
     with h5py.File('data.h5', 'w') as f:
         f.create_dataset('X_test', data=X_test)
         f.create_dataset('Y_test', data=Y_test)
-
-    if parallel:
-        pool.close()
+        f.create_dataset('bbxs', data=bbxs_table)
+        f.create_dataset('image_size', data=image_size)
+        f.create_dataset('biomarkers', data=[x.encode('UTF8') for x in biomarkers])
 
 
 if __name__ == '__main__':
