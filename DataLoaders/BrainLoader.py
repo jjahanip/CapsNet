@@ -32,7 +32,7 @@ class DataLoader(object):
             self.x_test, self.y_test = self.preprocess(x_test, y_test)
             bbxs = h5f['bbxs'][:]
             self.bbxs = pd.DataFrame(bbxs, columns=['ID', 'centroid_x', 'centroid_y', 'xmin', 'ymin', 'xmax', 'ymax'])
-            self.bbxs = self.bbxs.set_index('ID')
+            self.bbxs.set_index('ID', inplace=True)
             self.image_size = tuple(h5f['image_size'][:])
             self.biomarkers = h5f['biomarkers'][:].astype(str)
         h5f.close()
@@ -101,6 +101,7 @@ class DataLoader(object):
                          centers[y_pred[:, i] == 1, :], self.image_size)
 
     def generate_classification_table(self, y_pred):
+        # TODO: save as int
         for i in range(y_pred.shape[1]):
             self.bbxs[self.biomarkers[i + 2]] = y_pred[:, i]
 

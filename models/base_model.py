@@ -321,6 +321,7 @@ class BaseModel(object):
         #     y_pred = f['y_pred'][:]
 
         # create negative samples
+        # TODO: fix for any number of class
         thresh = 0.50
         neg_samples = np.where((y_prob[:, 0] < thresh) & (y_prob[:, 1] < thresh) & (y_prob[:, 2] < thresh) &
                                (y_prob[:, 3] < thresh) & (y_prob[:, 4] < thresh))[0]
