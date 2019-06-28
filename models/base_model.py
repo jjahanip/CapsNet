@@ -1,6 +1,7 @@
-import tensorflow as tf
 import os
 import numpy as np
+from tqdm import tqdm
+import tensorflow as tf
 from models.utils.loss_ops import margin_loss, spread_loss
 
 
@@ -298,7 +299,7 @@ class BaseModel(object):
         self.sess.run(tf.local_variables_initializer())
         y_prob = []
         y_pred = []
-        for step in range(self.num_test_batch):
+        for step in tqdm(range(self.num_test_batch)):
             start = step * self.conf.batch_size
             end = (step + 1) * self.conf.batch_size
             x_test, _ = self.data_reader.next_batch(start, end, mode='test')
@@ -308,23 +309,30 @@ class BaseModel(object):
         y_prob = np.array(y_prob)
         y_pred = np.array(y_pred)
 
-        # # temp
-        # import h5py
-        # with h5py.File('y.h5', 'w') as f:
-        #     f.create_dataset('y_pred', data=y_pred)
-        #     f.create_dataset('y_prob', data=y_prob)
+        # temp
+        import h5py
+        with h5py.File('y.h5', 'w') as f:
+            f.create_dataset('y_pred', data=y_pred)
+            f.create_dataset('y_prob', data=y_prob)
 
-        # # temp
-        # import h5py
-        # with h5py.File('y.h5', 'r') as f:
-        #     y_prob = f['y_prob'][:]
-        #     y_pred = f['y_pred'][:]
+        # temp
+        import h5py
+        with h5py.File('y.h5', 'r') as f:
+            y_prob = f['y_prob'][:]
+            y_pred = f['y_pred'][:]
+
+        # import matplotlib.pyplot as plt
+        # plt.hist(y_prob[:, 3], bins=200)
+        # plt.show()
 
         # create negative samples
         # TODO: fix for any number of class
-        thresh = 0.50
-        neg_samples = np.where((y_prob[:, 0] < thresh) & (y_prob[:, 1] < thresh) & (y_prob[:, 2] < thresh) &
-                               (y_prob[:, 3] < thresh) & (y_prob[:, 4] < thresh))[0]
+        thresh = [0.5, .5, .5, .8, .5]
+        neg_samples = np.where((y_prob[:, 0] < thresh[0]) &
+                               (y_prob[:, 1] < thresh[1]) &
+                               (y_prob[:, 2] < thresh[2]) &
+                               (y_prob[:, 3] < thresh[3]) &
+                               (y_prob[:, 4] < thresh[4]))[0]
         print('precentage of uncategorized cells: {:.2%}'.format((len(neg_samples) / len(self.data_reader.bbxs))))
         y_pred[neg_samples, :] = np.zeros((y_pred.shape[1]))
 
