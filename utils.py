@@ -1,6 +1,8 @@
-from tensorflow.examples.tutorials.mnist import input_data
-import numpy as np
 import scipy
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
+from tensorflow.examples.tutorials.mnist import input_data
 
 
 def load_data(mode='train'):
@@ -71,3 +73,32 @@ def write_spec(args):
         config_file.write('D: ' + str(args.D) + '\n')
 
     config_file.close()
+
+
+def threshold_gui(image, centers, values, init_thresh=0, name=''):
+
+    # create axes
+    fig = plt.figure()
+    plt.axis('off')
+    plt.title(name)
+    img_ax = plt.axes([0.1, 0.2, 0.8, 0.65])
+    slider_ax = plt.axes([0.1, 0.05, 0.8, 0.05])
+
+    # plot image and centers
+    plt.axes(img_ax)
+    plt.axis('off')
+    plt.imshow(image, cmap='gray')
+    dot_plt, = plt.plot(centers[:, 0], centers[:, 1], 'r.')
+    a_slider = Slider(slider_ax, 'Thresh', 0, np.max(values), valinit=init_thresh)
+
+    def update(val):
+        print(val)
+        val = a_slider.val
+        pos_samples = np.where(values > val)[0]
+        dot_plt.set_xdata(centers[pos_samples, 0])
+        dot_plt.set_ydata(centers[pos_samples, 1])
+        fig.canvas.draw()
+
+    a_slider.on_changed(update)
+
+    plt.show()
