@@ -14,7 +14,7 @@ class DataLoader(object):
         self.augment = cfg.data_augment
         self.max_angle = cfg.max_angle
         self.batch_size = cfg.batch_size
-        self.data_path = './data/data_' + str(cfg.data) + '.h5'
+        self.data_path = cfg.data_path
 
     def get_data(self, mode='train'):
         h5f = h5py.File(self.data_path, 'r')
@@ -92,7 +92,7 @@ class DataLoader(object):
 
     def generate_center_images(self, y_pred):
         centers = self.bbxs[['centroid_x', 'centroid_y']].values
-        save_dir = os.path.join(self.cfg.datadir, self.cfg.run_name)
+        save_dir = os.path.join(self.cfg.data_path, self.cfg.run_name)
         neg_samples = np.where(~y_pred.any(axis=1))[0]
         center_image(os.path.join(save_dir, 'all.tif'), centers, self.image_size)
         center_image(os.path.join(save_dir, 'uncategorized.tif'), centers[neg_samples, :], self.image_size)
@@ -105,14 +105,14 @@ class DataLoader(object):
         for i in range(y_pred.shape[1]):
             self.bbxs[self.biomarkers[i + 2]] = y_pred[:, i]
 
-        save_dir = os.path.join(self.cfg.datadir, self.cfg.run_name)
+        save_dir = os.path.join(self.cfg.data_path, self.cfg.run_name)
         self.bbxs.to_csv(os.path.join(save_dir, 'classification_table.csv'))
 
     def generate_probability_table(self, y_prob):
         for i in range(y_prob.shape[1]):
             self.bbxs[self.biomarkers[i + 2]] = y_prob[:, i]
 
-        save_dir = os.path.join(self.cfg.datadir, self.cfg.run_name)
+        save_dir = os.path.join(self.cfg.data_path, self.cfg.run_name)
         self.bbxs.to_csv(os.path.join(save_dir, 'probability_table.csv'))
 
 

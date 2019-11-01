@@ -30,6 +30,7 @@ parser.add_argument('--lr_min', type=float, default=1e-5, help='Minimum learning
 
 # data
 parser.add_argument('--data', type=str, default='brain', help='mnist or nodule or cifar10 or apoptosis or brain')
+parser.add_argument('--data_path', type=str, default='prepare_data/data.h5', help='path to the h5 data file')
 parser.add_argument('--N', type=int, default=19807, help='Total number of training samples')
 parser.add_argument('--dim', type=int, default=2, help='2D or 3D for nodule data')
 parser.add_argument('--one_hot', type=bool, default=False, help='one-hot-encodes the labels')
