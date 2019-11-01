@@ -10,16 +10,22 @@ from skimage.transform import resize
 
 import matplotlib.pyplot as plt
 
-input_dir = r'E:\50_plex\tif\pipeline2\unmixed'
-bbxs_file = r'E:\50_plex\tif\pipeline2\detection_results\bbxs_detection.txt'
-channelInfo_file = r'E:\50_plex\scripts\channel_info.csv'
-parallel = True
+input_dir = r'E:\50_plex\tif\pipeline2\final'
+bbxs_file = r'E:\50_plex\tif\pipeline2\detection_results/bbxs_detection.txt'
+parallel = False
 
 margin = 5
 image_size = (50, 50)
 topN = 5000
 
-biomarkers = ['DAPI', 'Histones', 'NeuN', 'S100', 'Olig2', 'Iba1', 'RECA1']
+# for not-existing channel put ''
+biomarkers = {'DAPI': 'S1_R2C1.tif',
+              'Histones': 'S1_R2C2.tif',
+              'NeuN': 'S1_R2C2.tif',
+              'S100': 'S1_R3C5.tif',
+              'Olig2': 'S1_R1C9.tif',
+              'Iba1': 'S1_R1C5.tif',
+              'RECA1': 'S1_R1C6.tif'}
 
 
 def zero_pad(image, dim):
@@ -55,16 +61,10 @@ def to_square(image):
 
 
 def main():
-
     try:
         cpus = multiprocessing.cpu_count()
     except NotImplementedError:
         cpus = 2  # arbitrary default
-
-
-    # read channel info table
-    assert os.path.isfile(channelInfo_file), '{} not found!'.format(channelInfo_file)
-    chInfo = pd.read_csv(channelInfo_file, sep=',')
 
     # read bbxs file
     assert os.path.isfile(bbxs_file), '{} not found!'.format(bbxs_file)
@@ -80,15 +80,14 @@ def main():
     permutation = np.random.permutation(bbxs.shape[0])
     bbxs = bbxs[permutation, :]
 
+    # get images
+    image_size = io.imread_collection(os.path.join(input_dir, biomarkers['DAPI']), plugin='tifffile')[0].shape
+    images = np.zeros((image_size[0], image_size[1], 7), dtype=np.uint16)
 
-    # get channels full address from channel info table
-    channel_names = [chInfo.loc[chInfo['Biomarker'] == bioM]['Channel'].values[0] for bioM in biomarkers]
-    channel_names = [os.path.join(input_dir, ch) for ch in channel_names]
-
-    # get image collection
-    im_coll = io.imread_collection(channel_names, plugin='tifffile')
-    images = io.concatenate_images(im_coll)
-    images = np.moveaxis(images, 0, -1)     # put channel as last dimension
+    # for each biomarker read the image and replace the black image if the channel is defined
+    for i, bioM in enumerate(biomarkers.keys()):
+        if biomarkers[bioM] != "":
+            images[:, :, i] = io.imread(os.path.join(input_dir, biomarkers[bioM]))
 
     # from utils import bbxs_image
     # bbxs_image('all.tif', bbxs, images[:, :, 0].shape[::-1])
@@ -97,11 +96,10 @@ def main():
     def get_crop(image, bbx, margin=0):
         return image[bbx[1] - margin:bbx[3] + margin, bbx[0] - margin:bbx[2] + margin, :]
 
-
     ################### GENERATE LABELS ###############################
     # calculate the intensity of each channel
     intensities = np.array([np.mean(get_crop(images, bbx), axis=(0, 1)) for bbx in bbxs])
-    intensities = intensities[:, 2:]         # we don't need DAPI and Histones for classification
+    intensities = intensities[:, 2:]  # we don't need DAPI and Histones for classification
     # find top N cells with highest intensity
     top_cells_each = [(-intensities[:, i]).argsort()[:topN] for i in range(intensities.shape[1])]
     top_cells = np.unique(np.array(top_cells_each).flatten())
@@ -118,7 +116,7 @@ def main():
     # del images
 
     # zero pad to the maximum dim
-    max_dim = max((max([cell.shape[:2] for cell in cells]))) # find maximum in each dimension
+    max_dim = max((max([cell.shape[:2] for cell in cells])))  # find maximum in each dimension
     if parallel:
         zero_pad_x = partial(zero_pad, dim=max_dim)
         with multiprocessing.Pool(processes=cpus) as pool:
@@ -147,18 +145,13 @@ def main():
 
     cells = np.array(new_new_cells)
 
-    from utils import bbxs_image
-    bbxs_image(biomarkers[2] + '.tif', bbxs[labels[:, 0] == 1, :], images[:, :, 3].shape[::-1], color='red')
-    bbxs_image(biomarkers[3] + '.tif', bbxs[labels[:, 1] == 1, :], images[:, :, 0].shape[::-1], color='red')
-    bbxs_image(biomarkers[4] + '.tif', bbxs[labels[:, 2] == 1, :], images[:, :, 0].shape[::-1], color='red')
-    bbxs_image(biomarkers[5] + '.tif', bbxs[labels[:, 3] == 1, :], images[:, :, 0].shape[::-1], color='red')
-    bbxs_image(biomarkers[6] + '.tif', bbxs[labels[:, 4] == 1, :], images[:, :, 0].shape[::-1], color='red')
-
+    # visualize
+    # from utils import bbxs_image
+    # bbxs_image(biomarkers[2] + '.tif', bbxs[labels[:, 0] == 1, :], images[:, :, 3].shape[::-1], color='red')
 
     # split dataset to train, test and validation
     from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(cells, labels, test_size=0.2)
-
 
     with h5py.File('data.h5', 'w') as f:
         f.create_dataset('x_train', data=X_train)

@@ -8,17 +8,22 @@ import skimage.io as io
 from functools import partial
 from skimage.transform import resize
 
-
-input_dir = r'/brazos/roysam/50_plex/Set#1_S1/final'
-bbxs_file = r'/brazos/roysam/50_plex/Set#1_S1/detection_results/bbxs_detection.txt'
-channelInfo_file = r'/brazos/roysam/50_plex/Set#1_S1/scripts/channel_info.csv'
+input_dir = r'E:\jahandar\DashData\TBI\G3_BR#10_HC_12_L\final'
+bbxs_file = r'E:\jahandar\DashData\TBI\G3_BR#10_HC_12_L\detection_results\bbxs_detection.txt'
 parallel = True
 
 margin = 5
 crop_size = (50, 50)
 topN = 5000
 
-biomarkers = ['DAPI', 'Histones', 'NeuN', 'S100', 'Olig2', 'Iba1', 'RECA1']
+# for not-existing channel put ''
+biomarkers = {'DAPI': 'R2C1.tif',
+              'Histones': 'R2C1.tif',
+              'NeuN': 'R1C4.tif',
+              'S100': 'R2C6.tif',
+              'Olig2': '',
+              'Iba1': 'R1C7.tif',
+              'RECA1': 'R1C6.tif'}
 
 
 def zero_pad(image, dim):
@@ -65,7 +70,6 @@ def get_crop(image, bbx, margin=0):
 
 
 def main():
-
     if parallel:
         try:
             cpus = multiprocessing.cpu_count()
@@ -73,19 +77,14 @@ def main():
             cpus = 2  # arbitrary default
         pool = multiprocessing.Pool(processes=cpus)
 
-    # read channel info table
-    assert os.path.isfile(channelInfo_file), '{} not found!'.format(channelInfo_file)
-    chInfo = pd.read_csv(channelInfo_file, sep=',')
+    # get images
+    image_size = io.imread_collection(os.path.join(input_dir, biomarkers['DAPI']), plugin='tifffile')[0].shape
+    images = np.zeros((image_size[0], image_size[1], 7), dtype=np.uint16)
 
-    # get channels full address from channel info table
-    channel_names = [chInfo.loc[chInfo['Biomarker'] == bioM]['Channel'].values[0] for bioM in biomarkers]
-    channel_names = [os.path.join(input_dir, ch) for ch in channel_names]
-
-    # get image collection
-    im_coll = io.imread_collection(channel_names, plugin='tifffile')
-    image_size = im_coll[0].shape[::-1]
-    images = io.concatenate_images(im_coll)
-    images = np.moveaxis(images, 0, -1)     # put channel as last dimension
+    # for each biomarker read the image and replace the black image if the channel is defined
+    for i, bioM in enumerate(biomarkers.keys()):
+        if biomarkers[bioM] != "":
+            images[:, :, i] = io.imread(os.path.join(input_dir, biomarkers[bioM]))
 
     # read bbxs file
     assert os.path.isfile(bbxs_file), '{} not found!'.format(bbxs_file)
@@ -99,7 +98,7 @@ def main():
 
     # calculate mean intensity of each image -> we need it later for generating labels
     meanInt = np.array([np.mean(x, axis=(0, 1)) for x in X])
-    meanInt = meanInt[:, 2:]         # we don't need DAPI and Histones for classification
+    meanInt = meanInt[:, 2:]  # we don't need DAPI and Histones for classification
 
     ## preprocess
     # zero pad to the maximum dim
@@ -129,7 +128,7 @@ def main():
         f.create_dataset('X_test', data=X_test)
         f.create_dataset('Y_test', data=Y_test)
         f.create_dataset('bbxs', data=bbxs_table)
-        f.create_dataset('image_size', data=image_size)
+        f.create_dataset('image_size', data=image_size[::-1])
         f.create_dataset('biomarkers', data=[x.encode('UTF8') for x in biomarkers])
 
 
