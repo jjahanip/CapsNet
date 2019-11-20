@@ -157,16 +157,8 @@ class BaseModel(object):
     def train(self):
         self.sess.run(tf.local_variables_initializer())
         self.best_validation_accuracy = 0
-        if self.conf.data == 'mnist':
-            from DataLoaders.MNISTLoader import DataLoader
-        elif self.conf.data == 'nodule':
-            from DataLoaders.DataLoader import DataLoader
-        elif self.conf.data == 'cifar10':
-            from DataLoaders.CIFARLoader import DataLoader
-        elif self.conf.data == 'apoptosis':
-            from DataLoaders.ApoptosisLoader import DataLoader
-        elif self.conf.data == 'brain':
-            from DataLoaders.BrainLoader import DataLoader
+
+        from DataLoader import BrainLoader as DataLoader
         self.data_reader = DataLoader(self.conf)
         self.data_reader.get_data(mode='train')
         self.data_reader.get_data(mode='valid')
@@ -253,16 +245,8 @@ class BaseModel(object):
     def test(self, step_num):
         self.sess.run(tf.local_variables_initializer())
         self.reload(step_num)
-        if self.conf.data == 'mnist':
-            from DataLoaders.MNISTLoader import DataLoader
-        elif self.conf.data == 'nodule':
-            from DataLoaders.DataLoader import DataLoader
-        elif self.conf.data == 'cifar10':
-            from DataLoaders.CIFARLoader import DataLoader
-        elif self.conf.data == 'apoptosis':
-            from DataLoaders.ApoptosisLoader import DataLoader
-        elif self.conf.data == 'brain':
-            from DataLoaders.BrainLoader import DataLoader
+
+        from DataLoader import BrainLoader as DataLoader
         self.data_reader = DataLoader(self.conf)
         self.data_reader.get_data(mode='test')
         self.num_test_batch = self.data_reader.count_num_batch(self.conf.batch_size, mode='test')
@@ -282,16 +266,8 @@ class BaseModel(object):
     def inference(self, step_num):
         self.sess.run(tf.local_variables_initializer())
         self.reload(step_num)
-        if self.conf.data == 'mnist':
-            from DataLoaders.MNISTLoader import DataLoader
-        elif self.conf.data == 'nodule':
-            from DataLoaders.DataLoader import DataLoader
-        elif self.conf.data == 'cifar10':
-            from DataLoaders.CIFARLoader import DataLoader
-        elif self.conf.data == 'apoptosis':
-            from DataLoaders.ApoptosisLoader import DataLoader
-        elif self.conf.data == 'brain':
-            from DataLoaders.BrainLoader import DataLoader
+
+        from DataLoader import BrainLoader as DataLoader
         self.data_reader = DataLoader(self.conf)
         self.data_reader.get_data(mode='test')
         self.num_test_batch = self.data_reader.count_num_batch(self.conf.batch_size, mode='test')
@@ -309,21 +285,18 @@ class BaseModel(object):
         y_prob = np.array(y_prob)
         y_pred = np.array(y_pred)
 
-        # temp
+        # temp (save)
         import h5py
-        with h5py.File('y.h5', 'w') as f:
+        with h5py.File(os.path.join(self.conf.OUTPUT_DIR, 'y.h5'), 'w') as f:
             f.create_dataset('y_pred', data=y_pred)
             f.create_dataset('y_prob', data=y_prob)
 
-        # temp
-        import h5py
-        with h5py.File('y.h5', 'r') as f:
-            y_prob = f['y_prob'][:]
-            y_pred = f['y_pred'][:]
+        # # temp (load)
+        # import h5py
+        # with h5py.File(os.path.join(self.conf.OUTPUT_DIR, 'y.h5'), 'r') as f:
+        #     y_prob = f['y_prob'][:]
+        #     y_pred = f['y_pred'][:]
 
-        # import matplotlib.pyplot as plt
-        # plt.hist(y_prob[:, 3], bins=200)
-        # plt.show()
 
         # create negative samples
         # TODO: fix for any number of class

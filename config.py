@@ -29,8 +29,6 @@ parser.add_argument('--init_lr', type=float, default=1e-4, help='Initial learnin
 parser.add_argument('--lr_min', type=float, default=1e-5, help='Minimum learning rate')
 
 # data
-parser.add_argument('--data', type=str, default='brain', help='mnist or nodule or cifar10 or apoptosis or brain')
-parser.add_argument('--data_path', type=str, default='prepare_data/data.h5', help='path to the h5 data file')
 parser.add_argument('--N', type=int, default=19807, help='Total number of training samples')
 parser.add_argument('--dim', type=int, default=2, help='2D or 3D for nodule data')
 parser.add_argument('--one_hot', type=bool, default=False, help='one-hot-encodes the labels')
@@ -42,11 +40,10 @@ parser.add_argument('--depth', type=int, default=32, help='Network input depth s
 parser.add_argument('--channel', type=int, default=7, help='Network input channel size')
 parser.add_argument('--num_cls', type=int, default=5, help='Number of output classes')
 
-# Directories
+# Training directories
 parser.add_argument('--run_name', type=str, default='run02', help='Run name')
 parser.add_argument('--logdir', type=str, default='./Results/log_dir/', help='Logs directory')
 parser.add_argument('--modeldir', type=str, default='./Results/model_dir/', help='Saved models directory')
-parser.add_argument('--datadir', type=str, default='./Results/data_dir/', help='Saved models directory')
 parser.add_argument('--reload_step', type=int, default=0, help='Reload step to continue training')
 parser.add_argument('--model_name', type=str, default='model', help='Model file name')
 
@@ -69,5 +66,10 @@ parser.add_argument('--A', type=int, default=32, help='A in Figure 1 of the pape
 parser.add_argument('--B', type=int, default=32, help='B in Figure 1 of the paper')
 parser.add_argument('--C', type=int, default=32, help='C in Figure 1 of the paper')
 parser.add_argument('--D', type=int, default=32, help='D in Figure 1 of the paper')
+
+# test save parameters
+parser.add_argument('--data_path', type=str, default=r'/project/hnguyen/xiaoyang/exps/Data/50_plex/jj_final/multiclass/capsuleNet/[retest]-autosegPseed-mrcnntest-imagenet/data.h5', help='path to the h5 data file')
+parser.add_argument('--OUTPUT_DIR', type=str, default='Results/test', help='Saved models directory')
+
 
 args, _ = parser.parse_known_args()

@@ -1,18 +1,21 @@
-import random
-import scipy
-from tensorflow.examples.tutorials.mnist import input_data
-import numpy as np
+import os
 import h5py
+import scipy
+import random
+import numpy as np
+import pandas as pd
+from prepare_data.utils import center_image
+import matplotlib.pyplot as plt
 
 
-class DataLoader(object):
+class BrainLoader(object):
 
     def __init__(self, cfg):
         self.cfg = cfg
         self.augment = cfg.data_augment
         self.max_angle = cfg.max_angle
         self.batch_size = cfg.batch_size
-        self.data_path = './data/data_' + str(cfg.height) + '.h5'
+        self.data_path = cfg.data_path
 
     def get_data(self, mode='train'):
         h5f = h5py.File(self.data_path, 'r')
@@ -28,6 +31,11 @@ class DataLoader(object):
             x_test = h5f['X_test'][:]
             y_test = h5f['Y_test'][:]
             self.x_test, self.y_test = self.preprocess(x_test, y_test)
+            bbxs = h5f['bbxs'][:]
+            self.bbxs = pd.DataFrame(bbxs, columns=['ID', 'centroid_x', 'centroid_y', 'xmin', 'ymin', 'xmax', 'ymax'])
+            self.bbxs.set_index('ID', inplace=True)
+            self.image_size = tuple(h5f['image_size'][:])
+            self.biomarkers = h5f['biomarkers'][:].astype(str)
         h5f.close()
 
     def next_batch(self, start=None, end=None, mode='train'):
@@ -50,7 +58,7 @@ class DataLoader(object):
         elif mode == 'valid':
             num_batch = int(self.y_valid.shape[0] / batch_size)
         elif mode == 'test':
-            num_batch = int(self.y_test.shape[0] / batch_size)
+            num_batch = int(np.ceil(self.y_test.shape[0] / batch_size))
         return num_batch
 
     def randomize(self):
@@ -64,7 +72,7 @@ class DataLoader(object):
             self.get_stats()
             x = (x - self.mean) / self.std
         elif normalize == 'unity_based':
-            x /= 255.
+            x /= 65535.
         x = x.reshape((-1, self.cfg.height, self.cfg.width, self.cfg.channel)).astype(np.float32)
         if one_hot:
             y = (np.arange(self.cfg.num_cls) == y[:, None]).astype(np.float32)
@@ -76,6 +84,38 @@ class DataLoader(object):
         h5f.close()
         self.mean = np.mean(x_train, axis=0)
         self.std = np.std(x_train, axis=0)
+
+    def plot_hists(self, y_prob):
+        for i in range(y_prob.shape[1]):
+            plt.figure()
+            plt.hist(y_prob[:, i], bins=500)
+            plt.title(self.biomarkers[i + 2])
+        plt.show()
+
+    def generate_center_images(self, y_pred):
+        centers = self.bbxs[['centroid_x', 'centroid_y']].values
+        save_dir = os.path.join(self.cfg.OUTPUT_DIR)
+        neg_samples = np.where(~y_pred.any(axis=1))[0]
+        center_image(os.path.join(save_dir, 'all.tif'), centers, self.image_size)
+        center_image(os.path.join(save_dir, 'uncategorized.tif'), centers[neg_samples, :], self.image_size)
+        for i in range(y_pred.shape[1]):
+            center_image(os.path.join(save_dir, self.biomarkers[i + 2] + '.tif'),
+                         centers[y_pred[:, i] == 1, :], self.image_size)
+
+    def generate_classification_table(self, y_pred):
+        # TODO: save as int
+        for i in range(y_pred.shape[1]):
+            self.bbxs[self.biomarkers[i + 2]] = y_pred[:, i]
+
+        save_dir = os.path.join(self.cfg.OUTPUT_DIR)
+        self.bbxs.to_csv(os.path.join(save_dir, 'classification_table.csv'))
+
+    def generate_probability_table(self, y_prob):
+        for i in range(y_prob.shape[1]):
+            self.bbxs[self.biomarkers[i + 2]] = y_prob[:, i]
+
+        save_dir = os.path.join(self.cfg.OUTPUT_DIR)
+        self.bbxs.to_csv(os.path.join(save_dir, 'probability_table.csv'))
 
 
 def random_rotation_2d(batch, max_angle):

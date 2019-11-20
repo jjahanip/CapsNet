@@ -195,11 +195,8 @@ class Fast_CapsNet_3D:
 
     def train(self):
         self.sess.run(tf.local_variables_initializer())
-        if self.conf.data == 'mnist':
-            from DataLoaders.MNISTLoader import DataLoader
-        elif self.conf.data == 'nodule':
-            from DataLoaders.DataLoader import DataLoader
 
+        from DataLoader import BrainLoader as DataLoader
         self.data_reader = DataLoader(self.conf)
         self.data_reader.get_validation()
         if self.conf.reload_step > 0:
