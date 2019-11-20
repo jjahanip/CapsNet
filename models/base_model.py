@@ -29,7 +29,7 @@ class BaseModel(object):
     def mask(self):
         with tf.variable_scope('Masking'):
             epsilon = 1e-9
-            self.v_length = tf.sqrt(tf.reduce_sum(tf.square(self.digit_caps), axis=2, keep_dims=True) + epsilon)
+            self.v_length = tf.sqrt(tf.reduce_sum(tf.square(self.digit_caps), axis=2, keepdims=True) + epsilon)
             # [?, num_cls, 1]
 
             self.y_prob = tf.squeeze(self.v_length)     # [?, num_cls]

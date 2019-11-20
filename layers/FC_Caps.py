@@ -35,7 +35,7 @@ class FCCapsuleLayer(layers.Layer):
         assert self.routings > 0, 'routing should be > 0.'
         for i in range(self.routings):
             # c.shape=[batch_size, num_caps, num_in_caps]
-            c = tf.nn.softmax(b, dim=1)
+            c = tf.nn.softmax(b, axis=1)
             activations = squash(K.batch_dot(c, inputs_hat, [2, 2]))  # [None, 10, 16]
 
         return activations
