@@ -8,8 +8,8 @@ import skimage.io as io
 from functools import partial
 from skimage.transform import resize
 
-input_dir = r'E:\jahandar\DashData\TBI\G3_BR#10_HC_12_L\final'
-bbxs_file = r'E:\jahandar\DashData\TBI\G3_BR#10_HC_12_L\detection_results\bbxs_detection.txt'
+input_dir = r'E:\50_plex\tif\pipeline2\final'
+bbxs_file = r'E:\50_plex\tif\pipeline2\detection_results\bbxs_detection.txt'
 parallel = True
 
 margin = 5
@@ -17,13 +17,13 @@ crop_size = (50, 50)
 topN = 5000
 
 # for not-existing channel put ''
-biomarkers = {'DAPI': 'R2C1.tif',
-              'Histones': 'R2C1.tif',
-              'NeuN': 'R1C4.tif',
-              'S100': 'R2C6.tif',
+biomarkers = {'DAPI': 'S1_R2C1.tif',
+              'Histones': 'S1_R2C2.tif',
+              'NeuN': 'S1_R2C4.tif',
+              'S100': 'S1_R3C5.tif',
               'Olig2': '',
-              'Iba1': 'R1C7.tif',
-              'RECA1': 'R1C6.tif'}
+              'Iba1': 'S1_R1C5.tif',
+              'RECA1': ''}
 
 
 def zero_pad(image, dim):
@@ -124,7 +124,7 @@ def main():
     Y_test = np.zeros_like(meanInt, dtype=int)
     Y_test[np.arange(len(meanInt)), meanInt.argmax(1)] = 1
 
-    with h5py.File('data.h5', 'w') as f:
+    with h5py.File('data_no_olig2_reca1.h5', 'w') as f:
         f.create_dataset('X_test', data=X_test)
         f.create_dataset('Y_test', data=Y_test)
         f.create_dataset('bbxs', data=bbxs_table)

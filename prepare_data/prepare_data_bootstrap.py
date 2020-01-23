@@ -11,11 +11,13 @@ from skimage.transform import resize
 import matplotlib.pyplot as plt
 
 input_dir = r'E:\50_plex\tif\pipeline2\final'
-bbxs_file = r'E:\50_plex\tif\pipeline2\classification_results/classification_table.csv'
-parallel = False
+bbxs_file = r'E:\50_plex\tif\pipeline2\classification_results\classification_table.csv'
+output_dir = ''
+inside_box = [6000, 4500, 38000, 24000]      # to exclude cells in the border
+parallel = True
 
 margin = 5
-image_size = (50, 50)
+crop_size = (50, 50)
 topN = 5000
 
 # for not-existing channel put ''
@@ -74,20 +76,20 @@ def main():
     labels = bbxs_table[['NeuN', 'S100', 'Olig2', 'Iba1', 'RECA1']].values.astype(int)
 
     # get bounding boxes in the center of brain
-    # inside_cells = (bbxs[:, 0] >= 6000) & (bbxs[:, 2] <= 38000) & (bbxs[:, 1] >= 4500) & (bbxs[:, 3] <= 24000)
-    inside_cells = (bbxs[:, 0] >= 20000) & (bbxs[:, 2] <= 24000) & (bbxs[:, 1] >= 13000) & (bbxs[:, 3] <= 17000)
+    inside_cells = (bbxs[:, 0] >= inside_box[0]) & (bbxs[:, 1] >= inside_box[1]) & \
+                   (bbxs[:, 2] <= inside_box[2]) & (bbxs[:, 3] <= inside_box[3])
 
     bbxs = bbxs[inside_cells, :]
     labels = labels[inside_cells, :]
 
     # remove cells with no class
     bbxs = bbxs[~np.all(labels == 0, axis=1)]
-    classes = labels[~np.all(labels == 0, axis=1)]
+    labels = labels[~np.all(labels == 0, axis=1)]
 
     # shuffle the bounding boxes
     permutation = np.random.permutation(bbxs.shape[0])
     bbxs = bbxs[permutation, :]
-    classes = classes[permutation, :]
+    labels = labels[permutation, :]
 
     # get images
     image_size = io.imread_collection(os.path.join(input_dir, biomarkers['DAPI']), plugin='tifffile')[0].shape
@@ -111,7 +113,7 @@ def main():
     del images
 
     # zero pad to the maximum dim
-    max_dim = max((max([cell.shape[:2] for cell in cells])))  # find maximum in each dimension
+    max_dim = np.max([cell.shape[:2] for cell in cells])  # find maximum in each dimension
     if parallel:
         zero_pad_x = partial(zero_pad, dim=max_dim)
         with multiprocessing.Pool(processes=cpus) as pool:
@@ -122,28 +124,25 @@ def main():
 
     # resize image specific size
     if parallel:
-        resize_x = partial(resize, output_shape=image_size, mode='constant', preserve_range=True, anti_aliasing=True)
+        resize_x = partial(resize, output_shape=crop_size, mode='constant', preserve_range=True, anti_aliasing=True)
         with multiprocessing.Pool(processes=cpus) as pool:
             new_new_cells = pool.map(resize_x, new_cells)
     else:
-        # new_new_cells = [resize(cell, image_size, mode='constant', preserve_range=True, anti_aliasing=True) for cell in new_cells]
-        new_new_cells = []
-        for id, cell in enumerate(new_cells):
-            temp = resize(cell, image_size, mode='constant', preserve_range=True)
-            new_new_cells.append(temp)
+        new_new_cells = [resize(cell, crop_size, mode='constant', preserve_range=True, anti_aliasing=True) for cell in new_cells]
+
 
     # visualize
-    id = 140
-    fig = plt.figure(figsize=(10,2))
-    for i in range(7):
-        plt.subplot(1, 7, i + 1)
-        plt.imshow(new_cells[id][:, :, i], cmap='gray', vmin=0, vmax=np.max(new_cells[id]))
-        plt.title(list(biomarkers)[i+2])
-    plt.tight_layout()
-    fig.suptitle('LABEL = {}'.format(biomarkers[np.argmax(classes[id])+2]))
-    plt.show()
+    # id = 1416
+    # fig = plt.figure(figsize=(10, 2))
+    # for i in range(7):
+    #     plt.subplot(1, 7, i+1)
+    #     plt.imshow(new_new_cells[id][:, :, i], cmap='gray', vmin=0, vmax=np.max(new_new_cells[id]))
+    #     plt.title(list(biomarkers)[i])
+    # plt.tight_layout()
+    # fig.suptitle('LABEL = {}'.format(list(biomarkers)[np.argmax(classes[id]) + 2]))
+    # plt.show()
 
-    cells = np.array(new_new_cells)
+    cells = np.array(new_new_cells, dtype=np.uint16)
 
     # visualize
     # from utils import bbxs_image
@@ -153,11 +152,11 @@ def main():
     from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(cells, labels, test_size=0.2)
 
-    with h5py.File('data.h5', 'w') as f:
-        f.create_dataset('x_train', data=X_train)
-        f.create_dataset('y_train', data=y_train)
-        f.create_dataset('x_test', data=X_test)
-        f.create_dataset('y_test', data=y_test)
+    with h5py.File(os.path.join(output_dir, 'data_bootstrap.h5'), 'w') as f:
+        f.create_dataset('X_train', data=X_train)
+        f.create_dataset('Y_train', data=y_train)
+        f.create_dataset('X_test', data=X_test)
+        f.create_dataset('Y_test', data=y_test)
 
 
 if __name__ == '__main__':
@@ -165,4 +164,8 @@ if __name__ == '__main__':
     main()
     print('*' * 50)
     print('*' * 50)
-    print('Pipeline finished successfully in {} seconds.'.format(time.time() - start))
+    duration = time.time() - start
+    m, s = divmod(int(duration), 60)
+    h, m = divmod(m, 60)
+    print('Preparing dataset finished successfully in {:d} hours, {:d} minutes and {:d} seconds.'.format(h, m, s))
+    print('data saved in {}'.format(output_dir + 'data_bootstrap.hy'))

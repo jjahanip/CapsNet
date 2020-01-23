@@ -12,10 +12,11 @@ import matplotlib.pyplot as plt
 
 input_dir = r'E:\50_plex\tif\pipeline2\final'
 bbxs_file = r'E:\50_plex\tif\pipeline2\detection_results/bbxs_detection.txt'
+inside_box = [8000, 4000, 34000, 24000]      # to exclude cells in the border
 parallel = False
 
 margin = 5
-image_size = (50, 50)
+crop_size = (50, 50)
 topN = 5000
 
 # for not-existing channel put ''
@@ -73,8 +74,8 @@ def main():
     bbxs = bbxs_table[['xmin', 'ymin', 'xmax', 'ymax']].values
 
     # get bounding boxes in the center of brain
-    bbxs = bbxs[(bbxs[:, 0] >= 8000) & (bbxs[:, 2] <= 34000) &
-                (bbxs[:, 1] >= 4000) & (bbxs[:, 3] <= 24000)]
+    bbxs = bbxs[(bbxs[:, 0] >= inside_box[0]) & (bbxs[:, 2] <= inside_box[2]) &
+                (bbxs[:, 1] >= inside_box[1]) & (bbxs[:, 3] <= inside_box[3])]
 
     # shuffle the bounding boxes
     permutation = np.random.permutation(bbxs.shape[0])
@@ -126,11 +127,11 @@ def main():
 
     # resize image specific size
     if parallel:
-        resize_x = partial(resize, output_shape=image_size, mode='constant', preserve_range=True)
+        resize_x = partial(resize, output_shape=crop_size, mode='constant', preserve_range=True)
         with multiprocessing.Pool(processes=cpus) as pool:
             new_new_cells = pool.map(resize_x, new_cells)
     else:
-        new_new_cells = [resize(cell, image_size, mode='constant', preserve_range=True) for cell in new_cells]
+        new_new_cells = [resize(cell, crop_size, mode='constant', preserve_range=True) for cell in new_cells]
 
     # visualize
     # id = 14000
@@ -154,10 +155,10 @@ def main():
     X_train, X_test, y_train, y_test = train_test_split(cells, labels, test_size=0.2)
 
     with h5py.File('data.h5', 'w') as f:
-        f.create_dataset('x_train', data=X_train)
-        f.create_dataset('y_train', data=y_train)
-        f.create_dataset('x_test', data=X_test)
-        f.create_dataset('y_test', data=y_test)
+        f.create_dataset('X_train', data=X_train)
+        f.create_dataset('Y_train', data=y_train)
+        f.create_dataset('X_test', data=X_test)
+        f.create_dataset('Y_test', data=y_test)
 
 
 if __name__ == '__main__':
