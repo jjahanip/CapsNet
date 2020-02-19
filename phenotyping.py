@@ -1,6 +1,3 @@
-# import matplotlib
-# matplotlib.use('Agg')
-
 import os
 import time
 import numpy as np
@@ -17,15 +14,15 @@ interactive(True)
 
 CELL_TYPES = ['Neuron', 'Astrocyte', 'Oligodendrocyte', 'Microglia', 'Blood vessel']
 
-channel_info_fname = r'/project/roysam/50_plex/Set#1_S1/scripts/channel_info.csv'
-boolean_table = r'/project/roysam/50_plex/Set#1_S1/scripts/Boolean_table_sheet.xlsx'
+channel_info_fname = r'E:\50_plex\scripts\channel_info.csv'
+boolean_table = r'E:\50_plex\scripts\Boolean_table_sheet_2.xlsx'
 bbxs_table = r'E:\50_plex\tif\pipeline2\detection_results\bbxs_detection.txt'
 feature_table = r'E:\50_plex\tif\pipeline2\detection_results\phenotyping\original\associated_features.csv'
-classification_table_1 = r'/brazos/roysam/jahandar/CapsNet/Results/data_dir/run02/classification_table.csv'
-classification_table_2 = r'/brazos/roysam/jahandar/CapsNet/Results/data_dir/run02/phenotyping/classification_table.csv'
-image_sample = r'/brazos/roysam/50_plex/Set#1_S1/final/S1_R1C1.tif'
-image_dir = r'/brazos/roysam/50_plex/Set#1_S1/final'
-save_dir = r'/brazos/roysam/jahandar/CapsNet/Results/data_dir/run02/phenotyping'
+classification_table_base = r'E:\jahandar\CapsNet\Results\data_dir\run02\classification_table.csv'
+classification_table_full = r'E:\jahandar\CapsNet\Results\data_dir\run02\phenotyping\classification_table.csv'
+image_sample = r'E:\50_plex\tif\pipeline2\final\S1_R1C1.tif'
+image_dir = r'E:\50_plex\tif\pipeline2\final'
+save_dir = r'E:\jahandar\CapsNet\Results\data_dir\run02\phenotyping'
 center_size = 2
 biomarker_dict = {'Cleaved Caspase-3': 3711.65,
                   'Tyrosine Hydroxylase': 4542.26,
@@ -46,33 +43,9 @@ biomarker_dict = {'Cleaved Caspase-3': 3711.65,
                   'Eomes': 2018.98,
                   'Calretinin': 4646.71,
                   'Nestin': 1931.85,
-                  'Aquaporin-4': 2524.47
+                  'Aquaporin-4': 2524.47,
+                  'Calbindin': 8056.71
                   }
-
-# biomarker_dict = {'NeuN': 1668.80,
-    #               'Iba1': 3748.19,
-    #               'Olig2': 1588.90,
-    #               'RECA1': 1407.23,
-    #               'S100': 2353.44,
-    #               'Cleaved Caspase-3': 6041.31,
-    #               'Tyrosine Hydroxylase': 4765.84,
-    #               'Blood Brain Barrier': 1021.45,
-    #               'GFP(R1C4)': 2592.55,
-    #               'PDGFR beta': 3141.93,
-    #               'Parvalbumin': 4162.26,
-    #               'Choline Acetyltransferase': 4980.4,
-    #               'GFAP': 1754.4,
-    #               'Smooth Muscle Actin': 2038.9,
-    #               'Glutaminase': 5351.1,
-    #               'Doublecortin': 4459.0,
-    #               'Sox2': 3708.7,
-    #               'PCNA': 2972.9,
-    #               'Vimentin': 3971.6,
-    #               'GAD67': 4219.3,
-    #               'Tbr1': 1866.8,
-    #               'Eomes': 2018.98,
-    #               'Calretinin': 4646.71
-    #               }
 
 
 def get_crop(image, bbx, margin=0):
@@ -161,9 +134,9 @@ def generate_boolean_center_image():
     im_size = image[0].shape[::-1]
 
     # read bbxs file
-    assert os.path.isfile(classification_table_1), '{} not found!'.format(classification_table_1)
+    assert os.path.isfile(classification_table_base), '{} not found!'.format(classification_table_base)
     # if file exist -> load
-    class_table = pd.read_csv(classification_table_1, sep=',')
+    class_table = pd.read_csv(classification_table_base, sep=',')
     class_table.set_index('ID', inplace=True)
 
     # # ICE file requires different format, restore to original format
@@ -211,9 +184,9 @@ def generate_boolean_center_image_2():
     im_size = image.shape[::-1]
 
     # read bbxs file
-    assert os.path.isfile(classification_table_1), '{} not found!'.format(classification_table_1)
+    assert os.path.isfile(classification_table_base), '{} not found!'.format(classification_table_base)
     # if file exist -> load
-    class_table = pd.read_csv(classification_table_1, sep=',')
+    class_table = pd.read_csv(classification_table_base, sep=',')
     class_table = class_table.set_index('ID')
 
     # # ICE file requires different format, restore to original format
@@ -278,7 +251,7 @@ def generate_boolean_image():
     channel_info_table = pd.read_csv(channel_info_fname, sep=',')
 
     # read bbxs file
-    assert os.path.isfile(classification_table_1), '{} not found!'.format(classification_table_1)
+    assert os.path.isfile(classification_table_base), '{} not found!'.format(classification_table_base)
 
 
     # read boolean file
@@ -315,7 +288,7 @@ def generate_boolean_image():
 
 
 def update_classification_table():
-    table = pd.read_csv(classification_table_1)
+    table = pd.read_csv(classification_table_base)
     table.set_index('ID', inplace=True)
 
     # read channel info table
@@ -366,6 +339,8 @@ def update_classification_table():
         # a_slider.on_changed(update)
         #
         # plt.show()
+        #
+        # a = 1
 
     table.to_csv(os.path.join(save_dir, 'classification_table.csv'))
 
@@ -378,9 +353,9 @@ def generate_boolean_center_image_from_sheet():
     im_size = image[0].shape[::-1]
 
     # read bbxs file
-    assert os.path.isfile(classification_table_2), '{} not found!'.format(classification_table_1)
+    assert os.path.isfile(classification_table_full), '{} not found!'.format(classification_table_base)
     # if file exist -> load
-    class_table = pd.read_csv(classification_table_2, sep=',')
+    class_table = pd.read_csv(classification_table_full, sep=',')
     class_table.set_index('ID', inplace=True)
 
     # # ICE file requires different format, restore to original format
@@ -413,6 +388,9 @@ def generate_boolean_center_image_from_sheet():
             # find rows in classification table that match the cell_type row
             pos_cells = np.where((class_table[cell_type.keys()] == cell_type.values).all(1))[0]
 
+            # temp
+            # all_cells.extend(pos_cells)
+
             # update the cell type table with the cell type class
             cell_type_table.loc[pos_cells + 1, 'cell_type'] = cell_type.name
 
@@ -439,7 +417,14 @@ def generate_boolean_center_image_from_sheet():
             # plt.title(index)
 
             # save the image
-            # center_image(os.path.join(save_dir, cell_type.name + '.tif'), centers, im_size, r=center_size)
+            # center_image(os.path.join(save_dir, cell_type.name + '.tif'), centers, im_size, r=center_size, color='red')
+
+    # for paper
+    cell_type.name = 'Catecholaminergic neuron'
+    cntrs = cell_type_table.loc[cell_type_table['cell_type'] == cell_type.name, ['centroid_x', 'centroid_y']].values
+    center_image(os.path.join(save_dir, cell_type.name + '.tif'), cntrs, im_size, r=center_size, color='red')
+
+
 
     uncategorized_cells = cell_type_table.loc[cell_type_table['cell_type'] == '', ['centroid_x', 'centroid_y']].values
     center_image(os.path.join(save_dir, 'uncategorized.tif'), uncategorized_cells, im_size, r=center_size)
@@ -451,12 +436,13 @@ if __name__ == '__main__':
 
     start = time.time()
 
-    # update_classification_table()
     # generate_centers_image()
     # generate_classification_table()
     # generate_boolean_center_image()
     # generate_boolean_center_image_2()
-    generate_boolean_center_image_from_sheet()
+
+    update_classification_table()
+    # generate_boolean_center_image_from_sheet()
 
     # generate_boolean_image()
     print('*' * 50)
