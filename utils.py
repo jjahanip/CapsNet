@@ -51,7 +51,7 @@ def write_spec(args):
     config_file.write('model: ' + args.model + '\n')
     config_file.write('loss_type: ' + args.loss_type + '\n')
     config_file.write('add_recon_loss: ' + str(args.add_recon_loss) + '\n')
-    config_file.write('data: ' + args.data + '\n')
+    config_file.write('data_path: ' + args.OUTPUT_DIR + '\n')
     config_file.write('height: ' + str(args.height) + '\n')
     config_file.write('num_cls: ' + str(args.num_cls) + '\n')
     config_file.write('batch_size: ' + str(args.batch_size) + '\n')

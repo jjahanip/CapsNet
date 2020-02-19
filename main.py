@@ -18,12 +18,22 @@ def main(_):
         print("Please input a mode: train or test")
     else:
         model = Model(tf.Session(), args)
-        if not os.path.exists(args.modeldir+args.run_name):
-            os.makedirs(args.modeldir+args.run_name)
-        if not os.path.exists(args.logdir+args.run_name):
-            os.makedirs(args.logdir+args.run_name)
+
         if args.mode == 'train':
+            # Write specification/network architecture in file
             write_spec(args)
+            # Create necessary directories to save logs and model parameters
+            if not os.path.exists(os.path.join(args.modeldir, args.run_name)):
+                os.makedirs(os.path.join(args.modeldir, args.run_name))
+            if not os.path.exists(os.path.join(args.logdir, args.run_name)):
+                os.makedirs(os.path.join(args.logdir, args.run_name))
+            # Create dataset for training from bounding boxes
+            from prepare_data.prepare_data_train import main as perpare_data
+            perpare_data(args.INPUT_DIR, args.BBXS_FILE,
+                         [args.DAPI, args.HISTONES, args.NEUN, args.S100, args.OLIG2, args.IBA1, args.RECA1],
+                         args.OUTPUT_DIR, inside_box=[8000, 4000, 34000, 24000], parallel=False, margin=5,
+                         crop_size=(50, 50), topN=5000)
+            # Train model
             model.train()
         elif args.mode == 'test':
             if not os.path.exists(args.OUTPUT_DIR):

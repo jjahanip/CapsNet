@@ -1,12 +1,35 @@
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--mode', type=str, default='test', help='train or test')
-parser.add_argument('--step_num', type=int, default=151469, help='model number to load')
+
+# INPUT/OUTPUT Arguments
+parser.add_argument('--INPUT_DIR', type=str, help='/path/to/input/dir')
+parser.add_argument('--OUTPUT_DIR', type=str, help='/path/to/output/dir')
+parser.add_argument('--BBXS_FILE', type=str, help='/path/to/bbxs_detection.txt')
+parser.add_argument('--DAPI', type=str, default='', help='<dapi.tif> | None')
+parser.add_argument('--HISTONES', type=str, default='', help='<histones.tif> | None')
+parser.add_argument('--NEUN', type=str, default='', help='<NeuN.tif> | None')
+parser.add_argument('--S100', type=str, default='', help='<S100.tif> | None')
+parser.add_argument('--OLIG2', type=str, default='', help='<Olig2.tif> | None')
+parser.add_argument('--IBA1', type=str, default='', help='<Iba1.tif> | None')
+parser.add_argument('--RECA1', type=str, default='', help='<RECA1.tif> | None')
+
+# MODE -> train | test
+parser.add_argument('--mode', type=str, default='train', help='train or test')
+
+# Test Arguments
+parser.add_argument('--step_num', type=int, default=151469, help='model number to load (for test)')
 parser.add_argument('--model', type=str, default='original_capsule', help='original_capsule, matrix_capsule or vector_capsule')
 
+# Training directories
+parser.add_argument('--run_name', type=str, default='test', help='Run name')
+parser.add_argument('--logdir', type=str, default='./Results/log_dir/', help='Logs directory')
+parser.add_argument('--modeldir', type=str, default='./Results/model_dir/', help='Saved models directory')
+parser.add_argument('--reload_step', type=int, default=0, help='Reload step to continue training')
+parser.add_argument('--model_name', type=str, default='model', help='Model file name')
+
 # Training logs
-parser.add_argument('--max_step', type=int, default=100000, help='# of step for training (only for mnist)')
+parser.add_argument('--max_step', type=int, default=200000, help='# of step for training (only for mnist)')
 parser.add_argument('--max_epoch', type=int, default=20, help='# of step for training (only for nodule data)')
 parser.add_argument('--epoch_based', type=bool, default=True, help='Running the training in epochs')
 parser.add_argument('--SAVE_FREQ', type=int, default=1000, help='Number of steps to save model')
@@ -29,7 +52,7 @@ parser.add_argument('--init_lr', type=float, default=1e-4, help='Initial learnin
 parser.add_argument('--lr_min', type=float, default=1e-5, help='Minimum learning rate')
 
 # data
-parser.add_argument('--N', type=int, default=19807, help='Total number of training samples')
+parser.add_argument('--N', type=int, default=121284, help='Total number of training samples')
 parser.add_argument('--dim', type=int, default=2, help='2D or 3D for nodule data')
 parser.add_argument('--one_hot', type=bool, default=False, help='one-hot-encodes the labels')
 parser.add_argument('--data_augment', type=bool, default=False, help='Adds augmentation to data')
@@ -39,13 +62,6 @@ parser.add_argument('--width', type=int, default=50, help='Network input width s
 parser.add_argument('--depth', type=int, default=32, help='Network input depth size (in the case of 3D input images)')
 parser.add_argument('--channel', type=int, default=7, help='Network input channel size')
 parser.add_argument('--num_cls', type=int, default=5, help='Number of output classes')
-
-# Training directories
-parser.add_argument('--run_name', type=str, default='run02', help='Run name')
-parser.add_argument('--logdir', type=str, default='./Results/log_dir/', help='Logs directory')
-parser.add_argument('--modeldir', type=str, default='./Results/model_dir/', help='Saved models directory')
-parser.add_argument('--reload_step', type=int, default=0, help='Reload step to continue training')
-parser.add_argument('--model_name', type=str, default='model', help='Model file name')
 
 # network architecture
 parser.add_argument('--prim_caps_dim', type=int, default=8, help='Dimension of the PrimaryCaps in the Original_CapsNet')
@@ -66,10 +82,6 @@ parser.add_argument('--A', type=int, default=32, help='A in Figure 1 of the pape
 parser.add_argument('--B', type=int, default=32, help='B in Figure 1 of the paper')
 parser.add_argument('--C', type=int, default=32, help='C in Figure 1 of the paper')
 parser.add_argument('--D', type=int, default=32, help='D in Figure 1 of the paper')
-
-# test save parameters
-parser.add_argument('--data_path', type=str, default=r'/project/hnguyen/xiaoyang/exps/Data/50_plex/jj_final/multiclass/capsuleNet/[retest]-autosegPseed-mrcnntest-imagenet/data.h5', help='path to the h5 data file')
-parser.add_argument('--OUTPUT_DIR', type=str, default='Results/test', help='Saved models directory')
 
 
 args, _ = parser.parse_known_args()

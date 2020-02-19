@@ -290,6 +290,9 @@ class BaseModel(object):
         with h5py.File(os.path.join(self.conf.OUTPUT_DIR, 'y.h5'), 'w') as f:
             f.create_dataset('y_pred', data=y_pred)
             f.create_dataset('y_prob', data=y_prob)
+        # generate histograms
+        self.data_reader.plot_hists(y_prob)
+
 
         # # temp (load)
         # import h5py
@@ -300,7 +303,7 @@ class BaseModel(object):
 
         # create negative samples
         # TODO: fix for any number of class
-        thresh = [0.5, .5, .5, .8, .5]
+        thresh = [0.5, .5, .5, .5, .5]
         neg_samples = np.where((y_prob[:, 0] < thresh[0]) &
                                (y_prob[:, 1] < thresh[1]) &
                                (y_prob[:, 2] < thresh[2]) &
@@ -309,8 +312,27 @@ class BaseModel(object):
         print('precentage of uncategorized cells: {:.2%}'.format((len(neg_samples) / len(self.data_reader.bbxs))))
         y_pred[neg_samples, :] = np.zeros((y_pred.shape[1]))
 
-        # generate histograms
-        self.data_reader.plot_hists(y_prob)
+        # for paper
+        # import matplotlib.pyplot as plt
+        # biomarkers = ['NeuN', 'S100', 'Olig2', 'Iba1', 'RECA1']
+        # for i, bioM in enumerate(biomarkers):
+        #     plt.figure(figsize=(10, 6.5))
+        #     plt.hist(y_prob[:, i], bins=1000, histtype='step', color='k')
+        #     plt.xlabel('{} probability'.format(bioM), fontsize=20, weight='bold')
+        #     plt.ylabel('Count', fontsize=20, weight='bold')
+        #     plt.xticks(fontsize=20, weight='bold')
+        #     plt.yticks(fontsize=20, weight='bold')
+        #     plt.ylim((0, 3000))
+        #     plt.savefig('figs/50_plex/final/{}.png'.format(bioM), dpi=300)
+        #     plt.show()
+        ###########################################################################
+        # ints = np.array([np.mean(self.data_reader.x_test[:, :, :, ch + 2], axis=(1, 2)) for ch in range(5)])
+        # for i, bioM in enumerate(biomarkers):
+        #     plt.figure(figsize=(10, 6.5))
+        #     hist, bins, _ = plt.hist(ints[:, i], bins=65535)
+        #     logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+        #     plt.hist(ints[:, i], bins=logbins, histtype='step', color='k')
+        # plt.show()
 
         # center image
         self.data_reader.generate_center_images(y_pred)
