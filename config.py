@@ -15,16 +15,19 @@ parser.add_argument('--IBA1', type=str, default='', help='<Iba1.tif> | None')
 parser.add_argument('--RECA1', type=str, default='', help='<RECA1.tif> | None')
 
 # MODE -> train | test
-parser.add_argument('--mode', type=str, default='train', help='train or test')
+parser.add_argument('--mode', type=str, default='test', help='train or test')
+parser.add_argument('--run_name', type=str, default='run03', help='Run name')
 
 # Test Arguments
-parser.add_argument('--step_num', type=int, default=151469, help='model number to load (for test)')
+parser.add_argument('--step_num', type=int, default=90959, help='model number to load (for test)')
 parser.add_argument('--model', type=str, default='original_capsule', help='original_capsule, matrix_capsule or vector_capsule')
+parser.add_argument('--test_mode', type=str, default='adjust', help='first | adjust -> generate or use y.h5 for inference')
+parser.add_argument('--thresholds', type=float, nargs='+', default=[.5, .5, .5, .5, .5],
+                    help='[NeuN_thres, S100_thresh, Olig2_thresh, Iba1_thresh, RECA1_thresh] for adjust test_mode')
 
 # Training directories
-parser.add_argument('--run_name', type=str, default='test', help='Run name')
-parser.add_argument('--logdir', type=str, default='./Results/log_dir/', help='Logs directory')
-parser.add_argument('--modeldir', type=str, default='./Results/model_dir/', help='Saved models directory')
+parser.add_argument('--logdir', type=str, default='Results/log_dir/', help='Logs directory')
+parser.add_argument('--modeldir', type=str, default='Results/model_dir/', help='Saved models directory')
 parser.add_argument('--reload_step', type=int, default=0, help='Reload step to continue training')
 parser.add_argument('--model_name', type=str, default='model', help='Model file name')
 

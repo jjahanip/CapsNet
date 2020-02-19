@@ -38,6 +38,12 @@ def main(_):
         elif args.mode == 'test':
             if not os.path.exists(args.OUTPUT_DIR):
                 os.makedirs(args.OUTPUT_DIR)
+            # Create dataset for training from bounding boxes if it is the first time for inference
+            if args.test_mode == 'first':
+                from prepare_data.prepare_data_test import main as perpare_data
+                perpare_data(args.INPUT_DIR, args.BBXS_FILE,
+                             [args.DAPI, args.HISTONES, args.NEUN, args.S100, args.OLIG2, args.IBA1, args.RECA1],
+                             args.OUTPUT_DIR, margin=5, crop_size=(50, 50), parallel=True)
             model.inference(args.step_num)
 
 

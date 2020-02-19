@@ -1,5 +1,7 @@
 import os
+import h5py
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 import tensorflow as tf
 from models.utils.loss_ops import margin_loss, spread_loss
@@ -273,37 +275,44 @@ class BaseModel(object):
         self.num_test_batch = self.data_reader.count_num_batch(self.conf.batch_size, mode='test')
         self.is_train = False
         self.sess.run(tf.local_variables_initializer())
-        y_prob = []
-        y_pred = []
-        for step in tqdm(range(self.num_test_batch)):
-            start = step * self.conf.batch_size
-            end = (step + 1) * self.conf.batch_size
-            x_test, _ = self.data_reader.next_batch(start, end, mode='test')
-            feed_dict = {self.x: x_test, self.mask_with_labels: False}
-            y_prob.extend(self.sess.run(self.y_prob, feed_dict=feed_dict))
-            y_pred.extend(self.sess.run(self.y_pred_ohe, feed_dict=feed_dict))
-        y_prob = np.array(y_prob)
-        y_pred = np.array(y_pred)
 
-        # temp (save)
-        import h5py
-        with h5py.File(os.path.join(self.conf.OUTPUT_DIR, 'y.h5'), 'w') as f:
-            f.create_dataset('y_pred', data=y_pred)
-            f.create_dataset('y_prob', data=y_prob)
-        # generate histograms
-        self.data_reader.plot_hists(y_prob)
+        if self.conf.test_mode == 'first':
+            y_prob = []
+            y_pred = []
+            for step in tqdm(range(self.num_test_batch)):
+                start = step * self.conf.batch_size
+                end = (step + 1) * self.conf.batch_size
+                x_test, _ = self.data_reader.next_batch(start, end, mode='test')
+                feed_dict = {self.x: x_test, self.mask_with_labels: False}
+                y_prob.extend(self.sess.run(self.y_prob, feed_dict=feed_dict))
+                y_pred.extend(self.sess.run(self.y_pred_ohe, feed_dict=feed_dict))
+            y_prob = np.array(y_prob)
+            y_pred = np.array(y_pred)
 
+            # generate probability table
+            self.data_reader.generate_probability_table(y_prob)
 
-        # # temp (load)
-        # import h5py
-        # with h5py.File(os.path.join(self.conf.OUTPUT_DIR, 'y.h5'), 'r') as f:
-        #     y_prob = f['y_prob'][:]
-        #     y_pred = f['y_pred'][:]
+            with h5py.File(os.path.join(self.conf.OUTPUT_DIR, 'y.h5'), 'w') as f:
+                f.create_dataset('y_pred', data=y_pred)
+                f.create_dataset('y_prob', data=y_prob)
 
+            # # generate histograms
+            # self.data_reader.plot_hists(y_prob)
+
+            # set threshold of 0.5 for each class to threshold probabilites
+            thresh = np.ones(self.conf.num_cls) * .5
+
+        # if it is not the first time for inference, load probabilities from y.h5 and adjust the thresholds
+        elif self.conf.test_mode == 'adjust':
+            with h5py.File(os.path.join(self.conf.OUTPUT_DIR, 'y.h5'), 'r') as f:
+                y_prob = f['y_prob'][:]
+                y_pred = f['y_pred'][:]
+
+            # read thresholds from user
+            thresh = self.conf.thresholds
 
         # create negative samples
         # TODO: fix for any number of class
-        thresh = [0.5, .5, .5, .5, .5]
         neg_samples = np.where((y_prob[:, 0] < thresh[0]) &
                                (y_prob[:, 1] < thresh[1]) &
                                (y_prob[:, 2] < thresh[2]) &
@@ -334,12 +343,11 @@ class BaseModel(object):
         #     plt.hist(ints[:, i], bins=logbins, histtype='step', color='k')
         # plt.show()
 
-        # center image
-        self.data_reader.generate_center_images(y_pred)
-
         # generate classification and proability table
         self.data_reader.generate_classification_table(y_pred)
-        self.data_reader.generate_probability_table(y_prob)
+
+        # center image
+        self.data_reader.generate_center_images(y_pred)
 
     def save(self, step):
         print('----> Saving the model at step #{0}'.format(step))
